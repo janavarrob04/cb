@@ -17,10 +17,10 @@ client = weaviate.connect_to_weaviate_cloud(
     cluster_url=weaviate_url,
     auth_credentials=Auth.api_key(weaviate_api_key),
 )
-collection = client.collections.get("Nora")
+collection = client.collections.get("Limpio2")
 
 # Cargar modelo de embeddings
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+embedding_model = SentenceTransformer("all-mpnet-base-v2")
 
 # Función para obtener embedding
 def get_embedding(text):
