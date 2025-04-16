@@ -18,15 +18,14 @@ client = weaviate.connect_to_weaviate_cloud(
     auth_credentials=Auth.api_key(weaviate_api_key),
 )
 collection = client.collections.get("Limpio2_v2")
-
-# Cargar modelo de embeddings
+# Cargar modelo de embeddings de Sentence-Transformers
 embedding_model = SentenceTransformer("all-mpnet-base-v2")
 
 # Función para obtener embedding
 def get_embedding(text):
     return embedding_model.encode(text).tolist()
 
-# Recuperar chunks similares
+# Recuperar chunks similares desde Weaviate
 def retrieve_similar_chunks(query, k=5):
     query_vector = get_embedding(query)
     results = collection.query.near_vector(near_vector=query_vector, limit=k)
@@ -37,7 +36,7 @@ def retrieve_similar_chunks(query, k=5):
         context.append({
             "text": properties.get("text", ""),
             "image": properties.get("image", None),
-            "page_number": properties.get("page_number", -1),
+            "page_number": properties.get("page_numbers", []),  # Asegúrate de usar el nombre correcto
             "source": properties.get("source", "")
         })
     return context
@@ -47,7 +46,7 @@ def remove_duplicate_chunks(chunks):
     seen = set()
     unique_chunks = []
     for chunk in chunks:
-        key = (chunk["page_number"], chunk["text"].strip())
+        key = (tuple(chunk["page_number"]), chunk["text"].strip())  # Usando el número de página y texto como clave
         if key not in seen:
             seen.add(key)
             unique_chunks.append(chunk)
@@ -62,7 +61,7 @@ def group_chunks_by_page(chunks):
         grouped[page]["texts"].append(chunk["text"])
     return grouped
 
-# Generar respuesta y filtrar chunks usados
+# Generar respuesta con OpenAI y filtrar chunks usados
 def generate_response(query, context):
     context_text = "\n\n".join([f"[Página {c['page_number']}]: {c['text']}" for c in context])
 
