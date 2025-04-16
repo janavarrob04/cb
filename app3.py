@@ -17,7 +17,7 @@ client = weaviate.connect_to_weaviate_cloud(
     cluster_url=weaviate_url,
     auth_credentials=Auth.api_key(weaviate_api_key),
 )
-collection = client.collections.get("Limpio2")
+collection = client.collections.get("Limpio2_v2")
 
 # Cargar modelo de embeddings
 embedding_model = SentenceTransformer("all-mpnet-base-v2")
