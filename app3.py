@@ -27,7 +27,7 @@ def get_embedding(text):
     return embedding_model.encode(text).tolist()
 
 # Recuperar chunks similares
-def retrieve_similar_chunks(query, k=5):
+def retrieve_similar_chunks(query, k=3):
     query_vector = get_embedding(query)
     results = collection.query.near_vector(near_vector=query_vector, limit=k)
 
