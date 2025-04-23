@@ -2,7 +2,7 @@ streamlit
 openai>=1.0.0
 weaviate-client
 sentence-transformers
-torch==2.1.2
+torch
 google-cloud-storage
 protobuf 
 google-auth
