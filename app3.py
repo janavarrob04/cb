@@ -11,6 +11,9 @@ from weaviate.classes.init import Auth
 # --- Importaciones de Google Cloud ---
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
+import json # Para parsear el JSON
+from google.oauth2 import service_account 
+
 
 # --- Función para convertir imagen a Base64 ---
 def image_to_base64(path):
