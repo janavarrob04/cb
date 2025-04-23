@@ -392,7 +392,7 @@ for msg in st.session_state.chat_history:
                             if img_bucket and img_object_path:
                                 image_bytes = download_blob_as_bytes(img_bucket, img_object_path)
                                 if image_bytes:
-                                    st.image(image_bytes, caption=f"{img_object_path}", use_column_width='auto')
+                                    st.image(image_bytes, caption=f"{img_object_path}", use_column_width='True')
                                 else:
                                     st.warning(f"⚠️ No se pudo cargar: `{img_uri}`")
                             else:
