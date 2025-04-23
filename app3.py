@@ -13,6 +13,9 @@ from weaviate.classes.init import Auth
 # --- Importaciones de Google Cloud ---
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
+import json
+from google.oauth2 import service_account 
+
 
 # --- Función para convertir imagen a Base64 ---
 def image_to_base64(path):
@@ -93,52 +96,66 @@ except Exception as e:
 # --- 2. Funciones Auxiliares ---
 
 # --- Funciones de GCS (Copiadas y adaptadas) ---
-@st.cache_data(ttl=3600) # Cachea por 1 hora (ajusta según necesidad)
+@st.cache_data(ttl=3600)
 def download_blob_as_bytes(bucket_name, source_blob_name):
-    """Descarga un blob de GCS y lo devuelve como bytes."""
+    print(f"---> Entrando a download_blob_as_bytes para: {bucket_name}/{source_blob_name}")
     if not bucket_name or not source_blob_name:
-        st.warning("Nombre de bucket o de objeto inválido para descargar.")
+        print(f"---> ERROR: Bucket o Blob inválido.")
         return None
+
+    storage_client = None # Inicializar a None
     try:
-        # Instancia el cliente (usará ADC o GOOGLE_APPLICATION_CREDENTIALS)
-        # Asegúrate de que la autenticación esté configurada en el entorno donde corre Streamlit
-        storage_client = storage.Client()
+        # --- NUEVO: Cargar credenciales explícitamente desde el Secret ---
+        print(f"---> Leyendo GOOGLE_APPLICATION_CREDENTIALS del entorno...")
+        credentials_json_str = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+
+        if not credentials_json_str:
+            print("---> ERROR FATAL: Variable GOOGLE_APPLICATION_CREDENTIALS no encontrada en el entorno.")
+            st.error("Error crítico de configuración: Faltan credenciales de Google Cloud.")
+            return None # O st.stop() si prefieres detener la app
+
+        # Quitar las comillas simples externas si existen (importante!)
+        if credentials_json_str.startswith("'") and credentials_json_str.endswith("'"):
+            credentials_json_str = credentials_json_str[1:-1]
+
+        try:
+            print(f"---> Parseando JSON de credenciales...")
+            # Reemplazar escapes literales \n por saltos de línea reales si es necesario
+            # Esto a veces es necesario dependiendo de cómo se pegó el string
+            credentials_info = json.loads(credentials_json_str.replace('\\n', '\n'))
+            # O simplemente: credentials_info = json.loads(credentials_json_str) si los \n están bien
+            print(f"---> JSON parseado. Project ID: {credentials_info.get('project_id')}")
+        except json.JSONDecodeError as json_err:
+            print(f"---> ERROR FATAL: No se pudo parsear el JSON de GOOGLE_APPLICATION_CREDENTIALS: {json_err}")
+            print(f"---> JSON String (primeros/últimos 100 chars): {credentials_json_str[:100]} ... {credentials_json_str[-100:]}")
+            st.error("Error crítico de configuración: Credenciales de Google Cloud corruptas.")
+            return None # O st.stop()
+
+        print(f"---> Creando objeto de credenciales desde info...")
+        credentials = service_account.Credentials.from_service_account_info(credentials_info)
+
+        print(f"---> Inicializando GCS Client con credenciales explícitas...")
+        storage_client = storage.Client(credentials=credentials, project=credentials_info.get("project_id"))
+        # --- FIN Carga explícita ---
+
+        print(f"---> Obteniendo bucket: {bucket_name}")
         bucket = storage_client.bucket(bucket_name)
+        print(f"---> Obteniendo blob: {source_blob_name}")
         blob = bucket.blob(source_blob_name)
-
-        # Descarga el contenido del objeto en memoria como bytes
-        content = blob.download_as_bytes()
-        print(f"✅ Imagen GCS '{source_blob_name}' descargada de '{bucket_name}'.") # Log para depurar
+        print(f"---> Llamando a blob.download_as_bytes()...")
+        content = blob.download_as_bytes(timeout=60.0) # Añadir timeout por si acaso
+        print(f"---> Descarga completa! {len(content)} bytes.")
         return content
-    except NotFound:
-        print(f"⚠️ Advertencia GCS: El objeto '{source_blob_name}' no se encontró en el bucket '{bucket_name}'.")
-        return None
-    except Exception as e:
-        print(f"❌ Error GCS al descargar '{source_blob_name}': {e}")
-        # Podrías mostrar un st.error aquí si es un error inesperado grave
-        # st.error(f"Error inesperado de GCS: {e}")
-        return None
 
-def parse_gs_uri(gs_uri):
-    """Parsea una URI gs:// y devuelve (bucket_name, object_path)."""
-    if not gs_uri or not gs_uri.startswith("gs://"):
-        print(f"URI no válida (no empieza con gs://): {gs_uri}")
-        return None, None
-    try:
-        parsed = urllib.parse.urlparse(gs_uri)
-        if parsed.scheme == "gs":
-            bucket_name = parsed.netloc
-            object_path = parsed.path.lstrip('/') # Quitar la barra inicial si existe
-            if not bucket_name or not object_path: # Validar que ambos existan
-                 print(f"URI inválida (falta bucket u objeto): {gs_uri}")
-                 return None, None
-            return bucket_name, object_path
-        else:
-            print(f"URI no tiene esquema 'gs': {gs_uri}")
-            return None, None
+    except NotFound:
+        print(f"---> EXCEPTION: NotFound - {source_blob_name} @ {bucket_name}")
+        return None
     except Exception as e:
-        print(f"Error parseando URI {gs_uri}: {e}")
-        return None, None
+        # Imprimir el traceback completo en los logs para más detalles
+        import traceback
+        print(f"---> EXCEPTION: {type(e).__name__} - Error GCS al descargar '{source_blob_name}':")
+        print(traceback.format_exc()) # <-- Imprime todo el traceback
+        return None
 
 
 # --- Funciones de RAG (Existentes) ---
