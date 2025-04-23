@@ -94,7 +94,7 @@ except Exception as e:
 # --- 2. Funciones Auxiliares ---
 
 # --- Funciones de GCS (Copiadas y adaptadas) ---
-@st.cache_data(ttl=3600)
+#@st.cache_data(ttl=3600)
 def download_blob_as_bytes(bucket_name, source_blob_name):
     # Print 1: Log de Entrada a la Función
     print(f"--- FUNC ENTER: download_blob_as_bytes para gs://{bucket_name}/{source_blob_name}")
