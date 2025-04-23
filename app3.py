@@ -447,7 +447,7 @@ if user_input:
                             if img_bucket and img_object_path:
                                 image_bytes = download_blob_as_bytes(img_bucket, img_object_path)
                                 if image_bytes:
-                                    st.image(image_bytes, caption=f"{img_object_path}", use_column_width='auto')
+                                    st.image(image_bytes, caption=f"{img_object_path}", use_column_width='True')
                                 else:
                                     # El error ya se loggea en download_blob_as_bytes
                                     st.warning(f"⚠️ No se pudo cargar: `{img_uri}`")
