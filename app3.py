@@ -94,71 +94,83 @@ except Exception as e:
 # --- 2. Funciones Auxiliares ---
 
 # --- Funciones de GCS (Copiadas y adaptadas) ---
-#@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600) # Cache por 1 hora (3600 segundos)
 def download_blob_as_bytes(bucket_name, source_blob_name):
-    # Print 1: Log de Entrada a la Función
-    print(f"--- FUNC ENTER: download_blob_as_bytes para gs://{bucket_name}/{source_blob_name}")
-    result = None # Inicializar la variable que vamos a devolver
+    """
+    Descarga un blob de GCS como bytes usando las credenciales
+    configuradas en st.secrets["gcp_service_account"].
+    """
+    print(f"--- FUNC ENTER: download_blob_as_bytes usando st.secrets para gs://{bucket_name}/{source_blob_name}")
+    result = None # Variable que se devolverá (bytes o None)
 
+    # Validación básica de los argumentos de entrada
     if not bucket_name or not source_blob_name:
-        print(f"---> ERROR FUNC: Bucket ('{bucket_name}') o Blob ('{source_blob_name}') inválido en la llamada.")
-        # Print 2: Log de Salida (por error de argumentos)
-        print(f"--- FUNC EXIT: download_blob_as_bytes para gs://{bucket_name}/{source_blob_name}. Devolviendo: {type(result)}")
+        print(f"---> ERROR FUNC: Bucket ('{bucket_name}') o Blob ('{source_blob_name}') inválido.")
+        # Considera st.warning si quieres notificar en la UI, aunque None es suficiente
+        print(f"--- FUNC EXIT (Args Inválidos): download_blob_as_bytes. Devolviendo: {type(result)}")
         return result
 
     storage_client = None
     try:
-        # --- Cargar credenciales explícitamente desde el Secret ---
-        # print(f"---> Leyendo GOOGLE_APPLICATION_CREDENTIALS del entorno...") # Log opcional
-        credentials_json_str = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        # --- 1. Cargar credenciales directamente desde st.secrets ---
+        # Verifica que la clave principal exista en los secretos
+        if "gcp_service_account" not in st.secrets:
+            error_message = "Error de Configuración: Las credenciales 'gcp_service_account' no se encontraron en los secretos de Streamlit."
+            print(f"---> ERROR FATAL FUNC: {error_message}")
+            st.error(error_message) # Muestra el error en la UI
+            print(f"--- FUNC EXIT (Falta Secret): download_blob_as_bytes. Devolviendo: {type(result)}")
+            return result # No se puede continuar sin credenciales
 
-        if not credentials_json_str:
-            print("---> ERROR FATAL FUNC: Variable GOOGLE_APPLICATION_CREDENTIALS no encontrada en el entorno.")
-            # Print 3: Log de Salida (por falta de credenciales)
-            print(f"--- FUNC EXIT: download_blob_as_bytes para gs://{bucket_name}/{source_blob_name}. Devolviendo: {type(result)}")
-            return result # Devolver None porque no podemos autenticar
+        # Obtiene el diccionario de credenciales directamente
+        credentials_info = st.secrets["gcp_service_account"]
 
-        # Quitar las comillas simples externas si existen (importante!)
-        if credentials_json_str.startswith("'") and credentials_json_str.endswith("'"):
-            credentials_json_str = credentials_json_str[1:-1]
+        # (Opcional pero recomendado) Validar que el diccionario cargado tiene campos clave
+        required_keys = ["type", "project_id", "private_key_id", "private_key", "client_email"]
+        if not all(key in credentials_info and credentials_info[key] for key in required_keys):
+             error_message = "Error de Configuración: Credenciales 'gcp_service_account' incompletas en los secretos (faltan campos o están vacíos)."
+             print(f"---> ERROR FATAL FUNC: {error_message}")
+             st.error(error_message)
+             print(f"--- FUNC EXIT (Secret Incompleto): download_blob_as_bytes. Devolviendo: {type(result)}")
+             return result
 
-        try:
-            # print(f"---> Parseando JSON de credenciales...") # Log opcional
-            # Reemplazar escapes literales \n por saltos de línea reales
-            credentials_info = json.loads(credentials_json_str.replace('\\n', '\n'))
-            # print(f"---> JSON parseado. Project ID: {credentials_info.get('project_id')}") # Log opcional
-        except json.JSONDecodeError as json_err:
-            print(f"---> ERROR FATAL FUNC: No se pudo parsear el JSON de GOOGLE_APPLICATION_CREDENTIALS: {json_err}")
-            # print(f"---> JSON String (primeros/últimos 100 chars): {credentials_json_str[:100]} ... {credentials_json_str[-100:]}") # Log opcional
-            # Print 4: Log de Salida (por JSON inválido)
-            print(f"--- FUNC EXIT: download_blob_as_bytes para gs://{bucket_name}/{source_blob_name}. Devolviendo: {type(result)}")
-            return result # Devolver None por JSON inválido
-
-        # print(f"---> Creando objeto de credenciales desde info...") # Log opcional
+        print(f"---> Creando objeto de credenciales desde diccionario de st.secrets...")
+        # Crea el objeto de credenciales a partir del diccionario
         credentials = service_account.Credentials.from_service_account_info(credentials_info)
+        # Obtén el project_id del diccionario para pasarlo al cliente
+        project_id = credentials_info.get("project_id")
 
-        # print(f"---> Inicializando GCS Client con credenciales explícitas...") # Log opcional
-        storage_client = storage.Client(credentials=credentials, project=credentials_info.get("project_id"))
-        # --- FIN Carga explícita ---
+        # --- 2. Inicializar el Cliente de Google Cloud Storage ---
+        print(f"---> Inicializando GCS Client (Project: {project_id}) con credenciales de st.secrets...")
+        storage_client = storage.Client(credentials=credentials, project=project_id)
 
-        # print(f"---> Obteniendo bucket: {bucket_name}") # Log opcional
+        # --- 3. Acceder al Bucket y al Blob ---
+        # print(f"---> Obteniendo bucket: {bucket_name}") # Puedes reducir logging si quieres
         bucket = storage_client.bucket(bucket_name)
-        # print(f"---> Obteniendo blob: {source_blob_name}") # Log opcional
+        # print(f"---> Obteniendo blob: {source_blob_name}")
         blob = bucket.blob(source_blob_name)
-        # print(f"---> Llamando a blob.download_as_bytes()...") # Log opcional
-        content = blob.download_as_bytes(timeout=60.0) # Timeout de 60 segundos
+
+        # --- 4. Descargar el contenido del Blob ---
+        print(f"---> Llamando a blob.download_as_bytes()...")
+        content = blob.download_as_bytes(timeout=60.0) # Mantenemos el timeout
         print(f"---> Descarga completa! gs://{bucket_name}/{source_blob_name} ({len(content)} bytes).")
-        result = content # Asignar los bytes descargados al resultado
+        result = content # Asigna los bytes descargados al resultado
 
     except NotFound:
-        print(f"---> EXCEPTION FUNC: NotFound - gs://{bucket_name}/{source_blob_name}")
-        result = None # Asegurar que devolvemos None si no se encuentra
+        # Error específico si el archivo no se encuentra en GCS
+        print(f"---> EXCEPTION FUNC: NotFound - El archivo gs://{bucket_name}/{source_blob_name} no existe.")
+        # Puedes mostrar una advertencia más sutil en la UI si lo prefieres
+        # st.warning(f"No se pudo encontrar la imagen: {source_blob_name}")
+        result = None # Asegura devolver None
     except Exception as e:
-        print(f"---> EXCEPTION FUNC: {type(e).__name__} - Error GCS al descargar 'gs://{bucket_name}/{source_blob_name}':")
-        print(traceback.format_exc()) # Imprime el traceback completo para depurar
-        result = None # Asegurar que devolvemos None si hay otra excepción
+        # Captura cualquier otro error durante la autenticación o descarga
+        print(f"---> EXCEPTION FUNC: {type(e).__name__} - Error GCS durante la descarga 'gs://{bucket_name}/{source_blob_name}':")
+        # Imprime el traceback completo en los logs de Streamlit para depuración
+        print(traceback.format_exc())
+        # Muestra un error genérico en la UI
+        st.error(f"Error al acceder a Google Cloud Storage para obtener la imagen. Verifica la configuración y los permisos.")
+        result = None # Asegura devolver None
 
-    # Print 5: Log de Salida (final normal o después de excepción manejada)
+    # --- 5. Devolver el resultado ---
     print(f"--- FUNC EXIT: download_blob_as_bytes para gs://{bucket_name}/{source_blob_name}. Devolviendo: {type(result)}")
     return result
 
