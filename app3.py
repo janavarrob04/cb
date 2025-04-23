@@ -157,6 +157,28 @@ def download_blob_as_bytes(bucket_name, source_blob_name):
         print(traceback.format_exc()) # <-- Imprime todo el traceback
         return None
 
+def parse_gs_uri(gs_uri):
+    """Parsea una URI gs:// y devuelve (bucket_name, object_path)."""
+    if not gs_uri or not gs_uri.startswith("gs://"):
+        print(f"URI no válida (no empieza con gs://): {gs_uri}")
+        return None, None
+    try:
+        # Usar urllib.parse es más robusto
+        parsed = urllib.parse.urlparse(gs_uri)
+        if parsed.scheme == "gs":
+            bucket_name = parsed.netloc
+            object_path = parsed.path.lstrip('/') # Quitar la barra inicial si existe
+            if not bucket_name or not object_path: # Validar que ambos existan
+                 print(f"URI inválida (falta bucket u objeto): {gs_uri}")
+                 return None, None
+            return bucket_name, object_path
+        else:
+            print(f"URI no tiene esquema 'gs': {gs_uri}")
+            return None, None
+    except Exception as e:
+        print(f"Error parseando URI {gs_uri}: {e}")
+        return None, None
+
 
 # --- Funciones de RAG (Existentes) ---
 def get_query_embedding(text):
