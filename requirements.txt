@@ -3,3 +3,5 @@ openai==0.28.0
 weaviate-client
 sentence-transformers
 torch
+google-cloud-storage
+protobuf 
