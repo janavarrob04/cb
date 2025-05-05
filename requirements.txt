@@ -6,3 +6,4 @@ torch
 google-cloud-storage
 protobuf 
 google-auth
+streamlit-oauth
