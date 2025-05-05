@@ -51,15 +51,6 @@ if 'user_info' not in st.session_state:
 if 'authorized' not in st.session_state:
     st.session_state.authorized = False
 
-##### NUEVO ##### Crear el componente OAuth2
-oauth2 = OAuth2Component(
-    client_id=GOOGLE_CLIENT_ID,
-    client_secret=GOOGLE_CLIENT_SECRET,
-    authorize_endpoint=AUTHORIZE_URL,
-    token_endpoint=TOKEN_URL,
-    refresh_token_endpoint=TOKEN_URL, # Google usa la misma url para refrescar
-)
-
 # --- 2. Flujo Principal: Autenticado vs. No Autenticado ---
 
 # Verifica si el usuario YA está autorizado
@@ -435,8 +426,21 @@ else:
     st.title("Bienvenido a NorIA 🤖")
     st.write(f"Por favor, inicia sesión con tu cuenta de Google del dominio **'{ALLOWED_DOMAIN}'** para continuar.")
 
-    result = oauth2(scope="openid email profile",
-                             redirect_uri=REDIRECT_URI) # Muestra botón y maneja flujo OAuth
+try:
+    result = OAuth2Component(
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        authorize_endpoint=AUTHORIZE_URL,
+        token_endpoint=TOKEN_URL,
+        refresh_token_endpoint=TOKEN_URL, # Endpoint para refrescar token
+        scope="openid email profile",     # Los permisos solicitados
+        redirect_uri=REDIRECT_URI         # La URI de redirección
+        # Puede que necesite otros argumentos específicos de esta versión
+    )
+except Exception as e:
+    st.error(f"Error al intentar usar el componente OAuth2Component: {e}")
+    st.info("Verifica la documentación de la versión de streamlit-oauth instalada.")
+    result = None # Asegura que result es None si falla la llamada
 
     if result and 'token' in result:
         st.session_state.token = result['token']
