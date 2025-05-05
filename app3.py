@@ -58,7 +58,6 @@ oauth2 = OAuth2Component(
     authorize_endpoint=AUTHORIZE_URL,
     token_endpoint=TOKEN_URL,
     refresh_token_endpoint=TOKEN_URL, # Google usa la misma url para refrescar
-    redirect_uri=REDIRECT_URI,
 )
 
 # --- 2. Flujo Principal: Autenticado vs. No Autenticado ---
