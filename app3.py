@@ -58,7 +58,6 @@ oauth2 = OAuth2Component(
     authorize_endpoint=AUTHORIZE_URL,
     token_endpoint=TOKEN_URL,
     refresh_token_endpoint=TOKEN_URL, # Google usa la misma url para refrescar
-    revoke_endpoint=f"https://oauth2.googleapis.com/revoke?token=", # URL para revocar
     scope="openid email profile", # Necesario obtener email y perfil
     redirect_uri=REDIRECT_URI,
 )
