@@ -6,4 +6,4 @@ torch
 google-cloud-storage
 protobuf 
 google-auth
-streamlit-oauth
+streamlit-oauth==0.1.14
