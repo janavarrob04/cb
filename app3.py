@@ -58,7 +58,6 @@ oauth2 = OAuth2Component(
     authorize_endpoint=AUTHORIZE_URL,
     token_endpoint=TOKEN_URL,
     refresh_token_endpoint=TOKEN_URL, # Google usa la misma url para refrescar
-    scope="openid email profile", # Necesario obtener email y perfil
     redirect_uri=REDIRECT_URI,
 )
 
@@ -437,7 +436,7 @@ else:
     st.title("Bienvenido a NorIA 🤖")
     st.write(f"Por favor, inicia sesión con tu cuenta de Google del dominio **'{ALLOWED_DOMAIN}'** para continuar.")
 
-    result = oauth2.authorize() # Muestra botón y maneja flujo OAuth
+    result = oauth2.authorize(scope="openid email profile") # Muestra botón y maneja flujo OAuth
 
     if result and 'token' in result:
         st.session_state.token = result['token']
