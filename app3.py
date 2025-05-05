@@ -435,7 +435,7 @@ else:
     st.title("Bienvenido a NorIA 🤖")
     st.write(f"Por favor, inicia sesión con tu cuenta de Google del dominio **'{ALLOWED_DOMAIN}'** para continuar.")
 
-    result = oauth2.authorize(scope="openid email profile",
+    result = oauth2(scope="openid email profile",
                              redirect_uri=REDIRECT_URI) # Muestra botón y maneja flujo OAuth
 
     if result and 'token' in result:
