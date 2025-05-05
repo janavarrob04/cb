@@ -433,7 +433,6 @@ try:
         authorize_endpoint=AUTHORIZE_URL,
         token_endpoint=TOKEN_URL,
         refresh_token_endpoint=TOKEN_URL, # Endpoint para refrescar token
-        scope="openid email profile",     # Los permisos solicitados
         redirect_uri=REDIRECT_URI         # La URI de redirección
         # Puede que necesite otros argumentos específicos de esta versión
     )
